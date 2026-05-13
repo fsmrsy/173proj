@@ -39,18 +39,115 @@ def get_finger_states(hand_landmarks, handedness_label):
     }
 
 def classify_gesture(hand_landmarks, handedness_label, image_width, image_height):
-    return "B"
-# def classify_gesture(hand_landmarks, handedness_label, image_width, image_height):
-#     fingers = get_finger_states(hand_landmarks, handedness_label)
+    fingers = get_finger_states(hand_landmarks, handedness_label)
 
-    print("FINGERS:", fingers)
+    wrist = landmark_to_point(hand_landmarks, 0, image_width, image_height)
+    thumb_tip = landmark_to_point(hand_landmarks, 4, image_width, image_height)
+    index_tip = landmark_to_point(hand_landmarks, 8, image_width, image_height)
+    middle_tip = landmark_to_point(hand_landmarks, 12, image_width, image_height)
+    ring_tip = landmark_to_point(hand_landmarks, 16, image_width, image_height)
+    pinky_tip = landmark_to_point(hand_landmarks, 20, image_width, image_height)
 
-    # A / fist
+    index_mcp = landmark_to_point(hand_landmarks, 5, image_width, image_height)
+    middle_mcp = landmark_to_point(hand_landmarks, 9, image_width, image_height)
+    ring_mcp = landmark_to_point(hand_landmarks, 13, image_width, image_height)
+    pinky_mcp = landmark_to_point(hand_landmarks, 17, image_width, image_height)
+
+    palm_width = distance(index_mcp, pinky_mcp)
+    if palm_width == 0:
+        return "UNKNOWN"
+
+    thumb_index_dist = distance(thumb_tip, index_tip)
+    thumb_middle_dist = distance(thumb_tip, middle_tip)
+
+    index_middle_dist = distance(index_tip, middle_tip)
+    middle_ring_dist = distance(middle_tip, ring_tip)
+    ring_pinky_dist = distance(ring_tip, pinky_tip)
+    index_pinky_dist = distance(index_tip, pinky_tip)
+
+    index_wrist_dist = distance(index_tip, wrist)
+    middle_wrist_dist = distance(middle_tip, wrist)
+    ring_wrist_dist = distance(ring_tip, wrist)
+    pinky_wrist_dist = distance(pinky_tip, wrist)
+
+    index_folded = distance(index_tip, index_mcp)
+    middle_folded = distance(middle_tip, middle_mcp)
+    ring_folded = distance(ring_tip, ring_mcp)
+    pinky_folded = distance(pinky_tip, pinky_mcp)
+
+    fingers_together = (
+        index_middle_dist < 0.45 * palm_width and
+        middle_ring_dist < 0.45 * palm_width and
+        ring_pinky_dist < 0.70 * palm_width
+    )
+
+    fingers_high = (
+        index_wrist_dist > 2.20 * palm_width and
+        middle_wrist_dist > 2.20 * palm_width and
+        ring_wrist_dist > 2.00 * palm_width and
+        pinky_wrist_dist > 1.80 * palm_width
+    )
+
+    open_hand = (
+        fingers["index"]
+        and fingers["middle"]
+        and fingers["ring"]
+        and fingers["pinky"]
+    )
+
+    # B first: open hand, fingers together, thumb closed
+    if (
+        open_hand
+        and fingers_together
+        and fingers_high
+        and not fingers["thumb"]
+    ):
+        return "B"
+
+    # C second: thumb/index opening + curled ring or pinky
+    c_opening = (
+        thumb_index_dist > 0.50 * palm_width and
+        thumb_middle_dist > 0.60 * palm_width
+    )
+
+    c_not_flat = index_pinky_dist < 1.50 * palm_width
+
+    c_not_fist = (
+        index_folded > 0.80 * palm_width or
+        middle_folded > 0.80 * palm_width or
+        ring_folded > 0.80 * palm_width or
+        pinky_folded > 0.80 * palm_width
+    )
+
+    c_has_curled_fingers = (
+        not fingers["ring"] or
+        not fingers["pinky"]
+    )
+
+    if (
+        c_opening
+        and c_not_flat
+        and c_not_fist
+        and c_has_curled_fingers
+        and not open_hand
+    ):
+        return "C"
+
+    # A
+    a_folded = (
+        index_folded < 0.85 * palm_width and
+        middle_folded < 0.85 * palm_width and
+        ring_folded < 0.85 * palm_width and
+        pinky_folded < 0.85 * palm_width
+    )
+
     if (
         not fingers["index"]
         and not fingers["middle"]
         and not fingers["ring"]
         and not fingers["pinky"]
+        and fingers["thumb"]
+        and a_folded
     ):
         return "A"
 
@@ -60,164 +157,8 @@ def classify_gesture(hand_landmarks, handedness_label, image_width, image_height
         and fingers["middle"]
         and not fingers["ring"]
         and not fingers["pinky"]
+        and index_middle_dist > 0.20 * palm_width
     ):
         return "PEACE"
 
-    # B / open hand
-    if (
-        fingers["index"]
-        and fingers["middle"]
-        and fingers["ring"]
-        and fingers["pinky"]
-    ):
-        return "B"
-
     return "UNKNOWN"
-
-
-
-# def classify_gesture(hand_landmarks, handedness_label, image_width, image_height):
-    # fingers = get_finger_states(hand_landmarks, handedness_label)
-
-    # wrist = landmark_to_point(hand_landmarks, 0, image_width, image_height)
-    # thumb_tip = landmark_to_point(hand_landmarks, 4, image_width, image_height)
-    # index_tip = landmark_to_point(hand_landmarks, 8, image_width, image_height)
-    # middle_tip = landmark_to_point(hand_landmarks, 12, image_width, image_height)
-    # ring_tip = landmark_to_point(hand_landmarks, 16, image_width, image_height)
-    # pinky_tip = landmark_to_point(hand_landmarks, 20, image_width, image_height)
-
-    # index_mcp = landmark_to_point(hand_landmarks, 5, image_width, image_height)
-    # middle_mcp = landmark_to_point(hand_landmarks, 9, image_width, image_height)
-    # ring_mcp = landmark_to_point(hand_landmarks, 13, image_width, image_height)
-    # pinky_mcp = landmark_to_point(hand_landmarks, 17, image_width, image_height)
-
-    # palm_width = distance(index_mcp, pinky_mcp)
-
-    # if palm_width == 0:
-    #     return "UNKNOWN"
-
-    # thumb_index_dist = distance(thumb_tip, index_tip)
-    # thumb_middle_dist = distance(thumb_tip, middle_tip)
-
-    # index_middle_dist = distance(index_tip, middle_tip)
-    # middle_ring_dist = distance(middle_tip, ring_tip)
-    # ring_pinky_dist = distance(ring_tip, pinky_tip)
-    # index_pinky_dist = distance(index_tip, pinky_tip)
-
-    # index_wrist_dist = distance(index_tip, wrist)
-    # middle_wrist_dist = distance(middle_tip, wrist)
-    # ring_wrist_dist = distance(ring_tip, wrist)
-    # pinky_wrist_dist = distance(pinky_tip, wrist)
-
-    # index_folded = distance(index_tip, index_mcp)
-    # middle_folded = distance(middle_tip, middle_mcp)
-    # ring_folded = distance(ring_tip, ring_mcp)
-    # pinky_folded = distance(pinky_tip, pinky_mcp)
-
-    # # A
-    # a_folded = (
-    #     index_folded < 0.85 * palm_width and
-    #     middle_folded < 0.85 * palm_width and
-    #     ring_folded < 0.85 * palm_width and
-    #     pinky_folded < 0.85 * palm_width
-    # )
-
-    # a_thumb_close = thumb_index_dist < 1.20 * palm_width
-
-    # if (
-    #     not fingers["index"]
-    #     and not fingers["middle"]
-    #     and not fingers["ring"]
-    #     and not fingers["pinky"]
-    #     and fingers["thumb"]
-    #     and a_folded
-    #     and a_thumb_close
-    # ):
-    #     return "A"
-
-    # print(
-    #     "B debug |",
-    #     "IM:", round(index_middle_dist / palm_width, 2),
-    #     "MR:", round(middle_ring_dist / palm_width, 2),
-    #     "RP:", round(ring_pinky_dist / palm_width, 2),
-    #     "TI:", round(thumb_index_dist / palm_width, 2),
-    #     "IW:", round(index_wrist_dist / palm_width, 2),
-    #     "MW:", round(middle_wrist_dist / palm_width, 2),
-    # )
-
-    # # B
-    # fingers_together = (
-    #     index_middle_dist < 0.45 * palm_width and
-    #     middle_ring_dist < 0.45 * palm_width and
-    #     ring_pinky_dist < 0.70 * palm_width
-    # )
-
-    # fingers_high = (
-    #     index_wrist_dist > 2.20 * palm_width and
-    #     middle_wrist_dist > 2.20 * palm_width and
-    #     ring_wrist_dist > 2.00 * palm_width and
-    #     pinky_wrist_dist > 1.80 * palm_width
-    # )
-
-    # if (
-    #     fingers["index"]
-    #     and fingers["middle"]
-    #     and fingers["ring"]
-    #     and fingers["pinky"]
-    #     and fingers_together
-    #     and fingers_high
-    # ):
-    #     return "B"
-
-    # # PEACE
-    # if (
-    #     not fingers["thumb"]
-    #     and fingers["index"]
-    #     and fingers["middle"]
-    #     and not fingers["ring"]
-    #     and not fingers["pinky"]
-    #     and index_middle_dist > 0.20 * palm_width
-    # ):
-    #     return "PEACE"
-
-    # # C
-    # c_opening = (
-    #     thumb_index_dist > 0.50 * palm_width and
-    #     thumb_middle_dist > 0.60 * palm_width
-    # )
-
-    # c_height = (
-    #     index_wrist_dist > 0.95 * palm_width and
-    #     middle_wrist_dist > 0.95 * palm_width and
-    #     ring_wrist_dist > 0.80 * palm_width and
-    #     pinky_wrist_dist > 0.70 * palm_width
-    # )
-
-    # c_not_flat = index_pinky_dist < 1.50 * palm_width
-
-    # c_curled_side = (
-    #     not fingers["ring"] or
-    #     not fingers["pinky"] or
-    #     ring_folded < 1.05 * palm_width or
-    #     pinky_folded < 1.00 * palm_width
-    # )
-
-    # looks_like_b = (
-    #     fingers["index"]
-    #     and fingers["middle"]
-    #     and fingers["ring"]
-    #     and fingers["pinky"]
-    #     and fingers_together
-    #     and fingers_high
-    # )
-
-    # if (
-    #     c_opening
-    #     and c_height
-    #     and c_not_flat
-    #     and c_curled_side
-    #     and not looks_like_b
-    # ):
-    #     return "C"
-
-    # return "UNKNOWN"
