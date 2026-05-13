@@ -1,5 +1,4 @@
 import cv2
-from collections import deque, Counter
 
 from vision import HandTracker
 from gestures import classify_gesture
@@ -10,15 +9,13 @@ from comms import CommandSender
 from simulator import RobotSimulator
 from trajectories import get_trajectory
 
-print("RUNNING VERSION 0.3")
+print("RUNNING VERSION 0.4")
 
 
 def main():
-
     sender = CommandSender(mode="sim")
     sim = RobotSimulator()
     last_sent = None
-    gesture_history = deque(maxlen=12)
 
     cap = cv2.VideoCapture(0)
     tracker = HandTracker(
@@ -28,7 +25,6 @@ def main():
         min_tracking_confidence=0.6,
     )
 
-    # use 1.0 while tuning, switch back to 3.0 later
     validator = GestureHoldValidator(hold_time=1.0)
 
     while True:
@@ -37,38 +33,36 @@ def main():
 
         sim.step()
 
-        while True:
-            success, frame = cap.read()
-            if not success:
-                print("Failed to read camera frame.")
-                break
+        success, frame = cap.read()
+        if not success:
+            print("Failed to read camera frame.")
+            break
 
-            frame = cv2.flip(frame, 1)
-            image_height, image_width, _ = frame.shape
+        frame = cv2.flip(frame, 1)
+        image_height, image_width, _ = frame.shape
 
-            results = tracker.process(frame)
+        results = tracker.process(frame)
 
-            detected_gesture = "UNKNOWN"
-            stable_gesture = "UNKNOWN"
-            confirmed_gesture = None
-            held_time = 0.0
+        detected_gesture = "UNKNOWN"
+        confirmed_gesture = None
+        held_time = 0.0
 
-            if results.multi_hand_landmarks and results.multi_handedness:
-                hand_landmarks = results.multi_hand_landmarks[0]
-                handedness_label = results.multi_handedness[0].classification[0].label
+        if results.multi_hand_landmarks and results.multi_handedness:
+            hand_landmarks = results.multi_hand_landmarks[0]
+            handedness_label = results.multi_handedness[0].classification[0].label
 
-                tracker.draw(frame, hand_landmarks)
+            tracker.draw(frame, hand_landmarks)
 
-                detected_gesture = classify_gesture(
-                    hand_landmarks,
-                    handedness_label,
-                    image_width,
-                    image_height
-                )
-                print("DETECTED =", detected_gesture)
-                
-                stable_gesture = detected_gesture
-                confirmed_gesture, held_time = validator.update(stable_gesture)
+            detected_gesture = classify_gesture(
+                hand_landmarks,
+                handedness_label,
+                image_width,
+                image_height
+            )
+
+            print("DETECTED =", detected_gesture)
+
+            confirmed_gesture, held_time = validator.update(detected_gesture)
 
             if confirmed_gesture:
                 print("SIM TRIGGER:", confirmed_gesture)
@@ -76,50 +70,29 @@ def main():
                 if confirmed_gesture != last_sent:
                     sender.send_command(confirmed_gesture)
 
-                    path = get_trajectory(confirmed_gesture, scale=140, offset=(350, 220))
+                    path = get_trajectory(
+                        confirmed_gesture,
+                        scale=140,
+                        offset=(350, 220)
+                    )
+
                     print("PATH:", path)
 
                     sim.load_trajectory(confirmed_gesture, path)
                     last_sent = confirmed_gesture
-            # if confirmed_gesture:
-            #     print(f"CONFIRMED GESTURE: {confirmed_gesture}")
 
-            #     if confirmed_gesture != last_sent:
-            #         sender.send_command(confirmed_gesture)
+        else:
+            validator.update("UNKNOWN")
+            last_sent = None
 
-            #         path = get_trajectory(confirmed_gesture, scale=140, offset=(350, 220))
-            #         sim.load_trajectory(confirmed_gesture, path)
+        draw_status_panel(frame, detected_gesture, held_time, confirmed_gesture)
 
-            #     last_sent = confirmed_gesture
+        cv2.imshow("Gesture Test", frame)
 
-                # if confirmed_gesture:
-                #     print(f"CONFIRMED GESTURE: {confirmed_gesture}")
+        key = cv2.waitKey(1) & 0xFF
+        if key == 27 or key == ord("q"):
+            break
 
-                #     if confirmed_gesture == "A":
-                #         print("TRIGGER DRAW A")
-
-                #     elif confirmed_gesture == "B":
-                #         print("TRIGGER DRAW B")
-
-                #     elif confirmed_gesture == "PEACE":
-                #         print("TRIGGER DRAW PEACE")
-
-                #     elif confirmed_gesture == "C":
-                #         print("TRIGGER DRAW C")
-
-            else:
-                gesture_history.clear()
-                stable_gesture = "UNKNOWN"
-                validator.update("UNKNOWN")
-                last_sent = None
-
-            draw_status_panel(frame, stable_gesture, held_time, confirmed_gesture)
-
-            cv2.imshow("Gesture Test", frame)
-
-            key = cv2.waitKey(1) & 0xFF
-            if key == 27 or key == ord("q"):
-                break
     sender.close()
     sim.close()
     tracker.close()
