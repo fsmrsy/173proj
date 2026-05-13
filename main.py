@@ -13,7 +13,7 @@ print("RUNNING VERSION 0.4")
 
 
 def main():
-    sender = CommandSender(mode="sim")
+    sender = CommandSender(mode="network", pi_ip="ceo67.local")
     sim = RobotSimulator()
     last_sent = None
 
@@ -46,6 +46,9 @@ def main():
         detected_gesture = "UNKNOWN"
         confirmed_gesture = None
         held_time = 0.0
+
+        if confirmed_gesture:
+            sender.send_command(confirmed_gesture)
 
         if results.multi_hand_landmarks and results.multi_handedness:
             hand_landmarks = results.multi_hand_landmarks[0]

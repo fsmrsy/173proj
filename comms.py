@@ -1,7 +1,7 @@
 import socket
 
 class CommandSender:
-    def __init__(self, mode="sim", pi_ip="127.0.0.1", port=5005):
+    def __init__(self, mode="network", pi_ip="ceo67.local", port=5005):
         self.mode = mode
         self.pi_ip = pi_ip
         self.port = port

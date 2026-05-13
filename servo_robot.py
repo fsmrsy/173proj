@@ -1,11 +1,3 @@
-'''
-
-Welcome to GDB Online.
-GDB online is an online compiler and debugger tool for C, C++, Python, Java, PHP, Ruby, Perl,
-C#, OCaml, VB, Swift, Pascal, Fortran, Haskell, Objective-C, Assembly, HTML, CSS, JS, SQLite, Prolog.
-Code, Compile, Run and Debug online from anywhere in world.
-
-'''
 from adafruit_servokit import ServoKit
 from time import sleep
 
@@ -20,7 +12,6 @@ class ServoRobot:
         self.WHEEL_2 = 1
         self.WHEEL_3 = 2
         self.WHEEL_4 = 3
-        self.WHEEL_5 = 4
 
         self.PEN_SERVO = 5
 
@@ -29,7 +20,6 @@ class ServoRobot:
             self.WHEEL_2,
             self.WHEEL_3,
             self.WHEEL_4,
-            self.WHEEL_5,
         ]
 
         # Direction correction for each wheel.
@@ -39,7 +29,6 @@ class ServoRobot:
             self.WHEEL_2: 1,
             self.WHEEL_3: 1,
             self.WHEEL_4: 1,
-            self.WHEEL_5: 1,
         }
 
         # FS90R continuous servo pulse range.
@@ -80,7 +69,7 @@ class ServoRobot:
         [wheel1, wheel2, wheel3, wheel4, wheel5]
         """
 
-        if len(speeds) != 5:
+        if len(speeds) != 4:
             raise ValueError("Expected exactly 5 wheel speed values.")
 
         for channel, speed in zip(self.wheel_channels, speeds):
@@ -107,12 +96,10 @@ class ServoRobot:
             speed,
             speed,
             speed,
-            speed,
         ])
 
     def backward(self, speed=0.4):
         self.set_all_wheels([
-            -speed,
             -speed,
             -speed,
             -speed,
